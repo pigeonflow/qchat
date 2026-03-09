@@ -3,6 +3,7 @@ import type { WSContext } from "hono/ws";
 
 export interface Participant {
   name: string;
+  deviceId: string;
   ws: WSContext;
   color: string;
 }
@@ -22,14 +23,21 @@ export interface Room {
 const rooms = new Map<string, Room>();
 
 const COLORS = [
-  "#06b6d4", "#f472b6", "#a78bfa", "#34d399", "#fbbf24",
-  "#fb923c", "#f87171", "#38bdf8", "#818cf8", "#4ade80",
+  "#25d366", "#53bdeb", "#f472b6", "#a78bfa", "#34d399",
+  "#fbbf24", "#fb923c", "#f87171", "#38bdf8", "#818cf8",
+  "#4ade80", "#e879f9", "#fca5a5", "#67e8f9",
 ];
 
 function colorFor(name: string): string {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
   return COLORS[Math.abs(h) % COLORS.length];
+}
+
+function participantNames(room: Room): string[] {
+  const names: string[] = [];
+  for (const [, p] of room.participants) names.push(p.name);
+  return names;
 }
 
 export function createRoom(opts: { name?: string; password?: string; max?: number; ttl?: number }): Room {
@@ -45,7 +53,6 @@ export function createRoom(opts: { name?: string; password?: string; max?: numbe
     participants: new Map(),
     timer: setTimeout(() => expireRoom(id), ttlMinutes * 60 * 1000),
   };
-  // Warning 5 min before expiry
   if (ttlMinutes > 5) {
     room.warningTimer = setTimeout(() => {
       broadcast(room, { type: "system", text: "Room expires in 5 minutes" });
@@ -59,11 +66,21 @@ export function getRoom(id: string): Room | undefined {
   return rooms.get(id);
 }
 
-export function joinRoom(room: Room, ws: WSContext, name: string): boolean {
+export function joinRoom(room: Room, ws: WSContext, name: string, deviceId: string): boolean {
   if (room.participants.size >= room.maxParticipants) return false;
-  const participant: Participant = { name, ws, color: colorFor(name) };
+
+  // If same deviceId already in room (reconnect), remove old connection
+  for (const [oldWs, p] of room.participants) {
+    if (p.deviceId === deviceId) {
+      room.participants.delete(oldWs);
+      try { oldWs.close(1000, "Reconnected from another tab"); } catch {}
+      break;
+    }
+  }
+
+  const participant: Participant = { name, deviceId, ws, color: colorFor(name) };
   room.participants.set(ws, participant);
-  broadcast(room, { type: "joined", user: name, participants: room.participants.size });
+  broadcast(room, { type: "joined", user: name, participants: room.participants.size, names: participantNames(room) });
   return true;
 }
 
@@ -71,7 +88,7 @@ export function leaveRoom(room: Room, ws: WSContext) {
   const p = room.participants.get(ws);
   if (!p) return;
   room.participants.delete(ws);
-  broadcast(room, { type: "left", user: p.name, participants: room.participants.size });
+  broadcast(room, { type: "left", user: p.name, participants: room.participants.size, names: participantNames(room) });
 }
 
 export function broadcastMessage(room: Room, ws: WSContext, text: string) {

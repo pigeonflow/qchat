@@ -65,7 +65,7 @@ export function startServer(opts: ServerOpts, onReady: (url: string, room: Room)
               ws.send(JSON.stringify({ type: "error", text: "Name required" }));
               return;
             }
-            joinRoom(r, ws, msg.name.trim());
+            joinRoom(r, ws, msg.name.trim(), msg.deviceId || "unknown");
           } else if (msg.type === "message") {
             if (msg.text?.trim()) broadcastMessage(r, ws, msg.text.trim());
           } else if (msg.type === "typing") {
