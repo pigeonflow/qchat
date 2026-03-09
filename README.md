@@ -1,5 +1,7 @@
 # qchat
 
+![qchat terminal](screenshot.jpg)
+
 Disposable group chat. One command, one QR code, zero signup.
 
 Spin up an instant chat room from your terminal. Share the QR code — people scan it and join from their phone browser. No app to install. Room self-destructs when done.
