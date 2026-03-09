@@ -1,0 +1,45 @@
+{
+  "name": "@pigeonflow/qchat",
+  "version": "1.0.1",
+  "description": "Disposable group chat. One command, one QR code, zero signup.",
+  "type": "module",
+  "bin": {
+    "qchat": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "chat",
+    "qr",
+    "disposable",
+    "group-chat",
+    "websocket",
+    "cli",
+    "real-time"
+  ],
+  "author": "pigeonflow",
+  "license": "MIT",
+  "dependencies": {
+    "@hono/node-server": "^1.13.8",
+    "@hono/node-ws": "^1.1.1",
+    "commander": "^13.1.0",
+    "hono": "^4.7.4",
+    "nanoid": "^5.1.2",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/qrcode": "^1.5.5",
+    "@types/qrcode-terminal": "^0.12.2",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
