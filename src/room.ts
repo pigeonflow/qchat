@@ -1,11 +1,20 @@
 import { nanoid } from "nanoid";
 import type { WSContext } from "hono/ws";
 
-export interface Participant {
+export interface Member {
   name: string;
   deviceId: string;
-  ws: WSContext;
   color: string;
+  ws: WSContext | null;  // null = offline
+  joinedAt: number;
+}
+
+export interface StoredMessage {
+  type: "message" | "system";
+  user?: string;
+  text: string;
+  ts: number;
+  color?: string;
 }
 
 export interface Room {
@@ -15,7 +24,8 @@ export interface Room {
   maxParticipants: number;
   ttlMinutes: number;  // 0 = persist until empty
   createdAt: number;
-  participants: Map<WSContext, Participant>;
+  members: Map<string, Member>;  // keyed by deviceId
+  messages: StoredMessage[];
   timer?: ReturnType<typeof setTimeout>;
   warningTimer?: ReturnType<typeof setTimeout>;
 }
@@ -34,10 +44,16 @@ function colorFor(name: string): string {
   return COLORS[Math.abs(h) % COLORS.length];
 }
 
-function participantNames(room: Room): string[] {
-  const names: string[] = [];
-  for (const [, p] of room.participants) names.push(p.name);
-  return names;
+function onlineMembers(room: Room): Member[] {
+  return [...room.members.values()].filter(m => m.ws !== null);
+}
+
+function memberNames(room: Room): string[] {
+  return [...room.members.values()].map(m => m.name);
+}
+
+function onlineCount(room: Room): number {
+  return onlineMembers(room).length;
 }
 
 export function createRoom(opts: { name?: string; password?: string; max?: number; ttl?: number }): Room {
@@ -50,14 +66,16 @@ export function createRoom(opts: { name?: string; password?: string; max?: numbe
     maxParticipants: opts.max ?? 50,
     ttlMinutes,
     createdAt: Date.now(),
-    participants: new Map(),
+    members: new Map(),
+    messages: [],
   };
-  // Only set expiry timer if TTL > 0 (0 = persist until empty)
   if (ttlMinutes > 0) {
     room.timer = setTimeout(() => expireRoom(id), ttlMinutes * 60 * 1000);
     if (ttlMinutes > 5) {
       room.warningTimer = setTimeout(() => {
-        broadcast(room, { type: "system", text: "Room expires in 5 minutes" });
+        const sysMsg: StoredMessage = { type: "system", text: "Room expires in 5 minutes", ts: Date.now() };
+        room.messages.push(sysMsg);
+        broadcast(room, sysMsg);
       }, (ttlMinutes - 5) * 60 * 1000);
     }
   }
@@ -69,56 +87,130 @@ export function getRoom(id: string): Room | undefined {
   return rooms.get(id);
 }
 
-export function joinRoom(room: Room, ws: WSContext, name: string, deviceId: string): boolean {
-  if (room.participants.size >= room.maxParticipants) return false;
+export function joinRoom(room: Room, ws: WSContext, name: string, deviceId: string): { ok: boolean; isReconnect: boolean } {
+  const existing = room.members.get(deviceId);
 
-  // If same deviceId already in room (reconnect), remove old connection
-  for (const [oldWs, p] of room.participants) {
-    if (p.deviceId === deviceId) {
-      room.participants.delete(oldWs);
-      try { oldWs.close(1000, "Reconnected from another tab"); } catch {}
+  if (existing) {
+    // Reconnect — close old ws if still open
+    if (existing.ws) {
+      try { existing.ws.close(1000, "Reconnected"); } catch {}
+    }
+    existing.ws = ws;
+    existing.name = name;
+
+    // Send history to reconnecting client
+    ws.send(JSON.stringify({ type: "history", messages: room.messages }));
+    // Notify others they're back online
+    broadcast(room, {
+      type: "online",
+      user: name,
+      members: room.members.size,
+      online: onlineCount(room),
+      names: memberNames(room),
+    });
+    return { ok: true, isReconnect: true };
+  }
+
+  // New member
+  if (room.members.size >= room.maxParticipants) return { ok: false, isReconnect: false };
+
+  const member: Member = { name, deviceId, color: colorFor(name), ws, joinedAt: Date.now() };
+  room.members.set(deviceId, member);
+
+  const sysMsg: StoredMessage = { type: "system", text: `${name} joined`, ts: Date.now() };
+  room.messages.push(sysMsg);
+
+  // Send history to new member
+  ws.send(JSON.stringify({ type: "history", messages: room.messages }));
+
+  broadcast(room, {
+    type: "joined",
+    user: name,
+    members: room.members.size,
+    online: onlineCount(room),
+    names: memberNames(room),
+  });
+
+  return { ok: true, isReconnect: false };
+}
+
+/** Called when WebSocket disconnects — member goes offline but stays in room */
+export function disconnectMember(room: Room, ws: WSContext) {
+  for (const [deviceId, member] of room.members) {
+    if (member.ws === ws) {
+      member.ws = null;
+      broadcast(room, {
+        type: "offline",
+        user: member.name,
+        members: room.members.size,
+        online: onlineCount(room),
+        names: memberNames(room),
+      });
       break;
     }
   }
-
-  const participant: Participant = { name, deviceId, ws, color: colorFor(name) };
-  room.participants.set(ws, participant);
-  broadcast(room, { type: "joined", user: name, participants: room.participants.size, names: participantNames(room) });
-  return true;
 }
 
-export function leaveRoom(room: Room, ws: WSContext) {
-  const p = room.participants.get(ws);
-  if (!p) return;
-  room.participants.delete(ws);
-  broadcast(room, { type: "left", user: p.name, participants: room.participants.size, names: participantNames(room) });
-  // In persist mode (ttl=0), close room when last person leaves
-  if (room.ttlMinutes === 0 && room.participants.size === 0) {
+/** Explicit leave — removes member from room entirely */
+export function leaveRoom(room: Room, ws: WSContext, deviceId: string) {
+  const member = room.members.get(deviceId);
+  if (!member) return;
+
+  room.members.delete(deviceId);
+  if (member.ws) {
+    try { member.ws.close(1000, "Left"); } catch {}
+  }
+
+  const sysMsg: StoredMessage = { type: "system", text: `${member.name} left`, ts: Date.now() };
+  room.messages.push(sysMsg);
+
+  broadcast(room, {
+    type: "left",
+    user: member.name,
+    members: room.members.size,
+    online: onlineCount(room),
+    names: memberNames(room),
+  });
+
+  // In persist mode, close room when last member leaves
+  if (room.ttlMinutes === 0 && room.members.size === 0) {
     broadcast(room, { type: "closed", reason: "empty" });
     rooms.delete(room.id);
   }
 }
 
 export function broadcastMessage(room: Room, ws: WSContext, text: string) {
-  const p = room.participants.get(ws);
-  if (!p) return;
-  broadcast(room, { type: "message", user: p.name, text, ts: Date.now(), color: p.color });
+  // Find member by ws
+  let sender: Member | undefined;
+  for (const m of room.members.values()) {
+    if (m.ws === ws) { sender = m; break; }
+  }
+  if (!sender) return;
+
+  const msg: StoredMessage = { type: "message", user: sender.name, text, ts: Date.now(), color: sender.color };
+  room.messages.push(msg);
+  broadcast(room, msg);
 }
 
 export function broadcastTyping(room: Room, ws: WSContext) {
-  const p = room.participants.get(ws);
-  if (!p) return;
-  for (const [client, _] of room.participants) {
-    if (client !== ws) {
-      try { client.send(JSON.stringify({ type: "typing", user: p.name })); } catch {}
+  let sender: Member | undefined;
+  for (const m of room.members.values()) {
+    if (m.ws === ws) { sender = m; break; }
+  }
+  if (!sender) return;
+  for (const m of room.members.values()) {
+    if (m.ws && m.ws !== ws) {
+      try { m.ws.send(JSON.stringify({ type: "typing", user: sender.name })); } catch {}
     }
   }
 }
 
 function broadcast(room: Room, msg: object) {
   const data = JSON.stringify(msg);
-  for (const [ws] of room.participants) {
-    try { ws.send(data); } catch {}
+  for (const m of room.members.values()) {
+    if (m.ws) {
+      try { m.ws.send(data); } catch {}
+    }
   }
 }
 
@@ -126,8 +218,8 @@ function expireRoom(id: string) {
   const room = rooms.get(id);
   if (!room) return;
   broadcast(room, { type: "closed", reason: "expired" });
-  for (const [ws] of room.participants) {
-    try { ws.close(1000, "Room expired"); } catch {}
+  for (const m of room.members.values()) {
+    if (m.ws) try { m.ws.close(1000, "Room expired"); } catch {}
   }
   rooms.delete(id);
 }
@@ -137,8 +229,8 @@ export function closeAllRooms() {
     if (room.timer) clearTimeout(room.timer);
     if (room.warningTimer) clearTimeout(room.warningTimer);
     broadcast(room, { type: "closed", reason: "host_disconnected" });
-    for (const [ws] of room.participants) {
-      try { ws.close(1000, "Server shutting down"); } catch {}
+    for (const m of room.members.values()) {
+      if (m.ws) try { m.ws.close(1000, "Server shutting down"); } catch {}
     }
   }
   rooms.clear();

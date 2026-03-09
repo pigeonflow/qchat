@@ -7,7 +7,6 @@ export function generateHTML(roomId: string, roomName: string, hasPassword: bool
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230b141a' width='100' height='100' rx='20'/><text y='70' x='50' text-anchor='middle' font-size='60'>💬</text></svg>">
 <title>${esc(roomName)} — qchat</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -20,7 +19,6 @@ export function generateHTML(roomId: string, roomName: string, hasPassword: bool
   --text:#e9edef;
   --text2:#8696a0;
   --bubble-out:#005c4b;
-  --bubble-out-lighter:#025144;
   --bubble-in:#1f2c34;
   --accent:#00a884;
   --accent2:#53bdeb;
@@ -30,7 +28,6 @@ export function generateHTML(roomId: string, roomName: string, hasPassword: bool
 html,body{height:100%;overflow:hidden}
 body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column}
 
-/* CHAT WALLPAPER PATTERN */
 .chat-bg{position:fixed;inset:0;opacity:.04;background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");z-index:0;pointer-events:none}
 
 /* JOIN SCREEN */
@@ -50,24 +47,22 @@ body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--b
 /* CHAT SCREEN */
 .chat-screen{display:none;flex-direction:column;height:100%;z-index:1;position:relative}
 
-/* HEADER — WhatsApp style */
 .header{background:var(--header);padding:10px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;padding-top:max(10px,env(safe-area-inset-top));box-shadow:0 1px 3px rgba(0,0,0,.2)}
 .header-avatar{width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 .header-info{flex:1;min-width:0}
 .header-info h2{font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .header-info .meta{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.header-timer{font-size:11px;color:var(--text2);background:rgba(255,255,255,.08);padding:4px 10px;border-radius:12px;flex-shrink:0;font-variant-numeric:tabular-nums}
-.install-btn{display:none;background:none;border:1px solid var(--accent);color:var(--accent);font-size:11px;padding:4px 10px;border-radius:12px;cursor:pointer;flex-shrink:0;font-weight:500;transition:background .2s,color .2s}
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.header-timer{font-size:11px;color:var(--text2);background:rgba(255,255,255,.08);padding:4px 10px;border-radius:12px;font-variant-numeric:tabular-nums}
+.install-btn,.leave-btn{display:none;background:none;border:1px solid var(--accent);color:var(--accent);font-size:11px;padding:4px 10px;border-radius:12px;cursor:pointer;font-weight:500;transition:background .2s,color .2s}
 .install-btn:hover{background:var(--accent);color:#fff}
+.leave-btn{display:block;border-color:var(--danger);color:var(--danger)}
+.leave-btn:hover{background:var(--danger);color:#fff}
 
 /* MESSAGES */
 .messages{flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:1px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
-
-/* Date divider */
-.date-divider{align-self:center;background:var(--header);color:var(--text2);font-size:11px;padding:4px 12px;border-radius:8px;margin:8px 0;box-shadow:0 1px 1px rgba(0,0,0,.15)}
-
-/* Message bubbles — WhatsApp style with tails */
 .msg{max-width:80%;padding:6px 8px 4px;border-radius:8px;animation:msgIn .2s ease-out;word-wrap:break-word;line-height:1.35;position:relative;margin-bottom:1px}
+.msg.no-anim{animation:none}
 .msg-first{margin-top:6px}
 .msg-mine{align-self:flex-end;background:var(--bubble-out);border-top-right-radius:0}
 .msg-mine.msg-first::after{content:'';position:absolute;top:0;right:-8px;width:8px;height:13px;background:var(--bubble-out);clip-path:polygon(0 0,0 100%,100% 0)}
@@ -78,20 +73,19 @@ body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--b
 .msg-footer{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:1px}
 .msg-time{font-size:11px;color:rgba(255,255,255,.5)}
 .msg-mine .msg-time{color:rgba(255,255,255,.6)}
-/* Double tick */
 .msg-tick{font-size:14px;color:var(--tick);line-height:1}
-
-/* System messages */
 .msg-system{align-self:center;color:var(--text2);font-size:12px;padding:4px 12px;background:var(--header);border-radius:8px;margin:4px 0;box-shadow:0 1px 1px rgba(0,0,0,.15)}
+.msg-system.no-anim{animation:none}
 
-/* Typing */
 .typing-indicator{color:var(--text2);font-size:12px;padding:2px 16px;min-height:20px;flex-shrink:0}
 .typing-dots{display:inline-flex;gap:3px;vertical-align:middle;margin-left:4px}
 .typing-dots span{width:5px;height:5px;border-radius:50%;background:var(--text2);animation:typingBounce 1.4s infinite}
 .typing-dots span:nth-child(2){animation-delay:.2s}
 .typing-dots span:nth-child(3){animation-delay:.4s}
 
-/* INPUT BAR — WhatsApp style */
+/* Reconnecting banner */
+.reconnecting{display:none;background:#e6a817;color:#000;text-align:center;font-size:12px;padding:4px;font-weight:500;flex-shrink:0}
+
 .input-bar{display:flex;gap:6px;padding:6px 8px;background:var(--bg);flex-shrink:0;padding-bottom:max(6px,env(safe-area-inset-bottom));align-items:flex-end}
 .input-wrap{flex:1;background:var(--input-bg);border-radius:24px;display:flex;align-items:flex-end;padding:6px 12px;min-height:44px}
 .input-wrap input{flex:1;border:none;background:transparent;color:var(--text);font-size:16px;outline:none;padding:4px 0;line-height:1.3}
@@ -101,12 +95,19 @@ body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--b
 .send-btn:disabled{opacity:.3}
 .send-btn svg{width:22px;height:22px;fill:#fff}
 
-/* Closed overlay */
 .closed-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text);font-size:17px;font-weight:500}
 .closed-overlay span{font-size:44px;margin-bottom:4px}
 .closed-overlay .subtitle{font-size:13px;color:var(--text2)}
 
-/* Scrollbar */
+/* Confirm dialog */
+.confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:90;align-items:center;justify-content:center}
+.confirm-box{background:var(--surface);border-radius:12px;padding:24px;max-width:280px;text-align:center}
+.confirm-box p{margin-bottom:16px;font-size:15px}
+.confirm-box .btns{display:flex;gap:8px}
+.confirm-box button{flex:1;padding:10px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+.confirm-cancel{background:var(--input-bg);color:var(--text)}
+.confirm-leave{background:var(--danger);color:#fff}
+
 .messages::-webkit-scrollbar{width:5px}
 .messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
 
@@ -135,11 +136,15 @@ body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--b
     <div class="header-avatar">💬</div>
     <div class="header-info">
       <h2>${esc(roomName)}</h2>
-      <div class="meta" id="headerMeta">tap here for info</div>
+      <div class="meta" id="headerMeta"></div>
     </div>
-    <button class="install-btn" id="installBtn" onclick="doInstall()">📲 Add to Home</button>
-    <div class="header-timer" id="countdown"></div>
+    <div class="header-actions">
+      <button class="install-btn" id="installBtn" onclick="doInstall()">📲 Add</button>
+      <div class="header-timer" id="countdown"></div>
+      <button class="leave-btn" id="leaveBtn" onclick="confirmLeave()">Leave</button>
+    </div>
   </div>
+  <div class="reconnecting" id="reconnecting">Reconnecting...</div>
   <div class="messages" id="messages"></div>
   <div class="typing-indicator" id="typingIndicator"></div>
   <div class="input-bar">
@@ -158,63 +163,122 @@ body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--b
   <div class="subtitle">This room has been closed</div>
 </div>
 
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <p>Leave this chat? You'll lose access and your history.</p>
+    <div class="btns">
+      <button class="confirm-cancel" onclick="cancelLeave()">Cancel</button>
+      <button class="confirm-leave" onclick="doLeave()">Leave</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const ROOM_ID="${roomId}",CREATED=${createdAt},TTL=${ttlMinutes};
 let ws,myName,myDeviceId,typingTimeout,typingClear={},lastSender="",lastSenderTime=0;
+let joined=false,intentionalClose=false;
 
 function $(id){return document.getElementById(id)}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
 
-// Device ID — cached in localStorage
 function getDeviceId(){
   let id=localStorage.getItem('qchat_device_id');
   if(!id){id=crypto.randomUUID?crypto.randomUUID():'d-'+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('qchat_device_id',id)}
   return id;
 }
 
-// Restore saved name for this room
-function getSavedName(){return localStorage.getItem('qchat_name_'+ROOM_ID)||localStorage.getItem('qchat_last_name')||''}
+// Check if we were previously in this room
+function getSession(){
+  try{return JSON.parse(localStorage.getItem('qchat_session_'+ROOM_ID))}catch{return null}
+}
+function saveSession(name,deviceId){
+  localStorage.setItem('qchat_session_'+ROOM_ID,JSON.stringify({name,deviceId}));
+}
+function clearSession(){
+  localStorage.removeItem('qchat_session_'+ROOM_ID);
+}
+
+// Auto-rejoin if we have a session
+const prevSession=getSession();
+if(prevSession){
+  myName=prevSession.name;
+  myDeviceId=prevSession.deviceId;
+  // Skip join screen, go straight to chat
+  $("joinScreen").style.display="none";
+  $("chatScreen").style.display="flex";
+  connect();
+} else {
+  // Pre-fill from last used name
+  const lastN=localStorage.getItem('qchat_last_name');
+  if(lastN)$("nameInput").value=lastN;
+}
+
+function connect(){
+  const proto=location.protocol==="https:"?"wss:":"ws:";
+  ws=new WebSocket(proto+"//"+location.host+"/room/"+ROOM_ID+"/ws");
+  ws.onopen=()=>{
+    $("reconnecting").style.display="none";
+    ws.send(JSON.stringify({type:"join",name:myName,deviceId:myDeviceId${hasPassword ? ',password:localStorage.getItem("qchat_pass_"+ROOM_ID)||""' : ''}}));
+  };
+  ws.onmessage=handleMsg;
+  ws.onerror=()=>{};
+  ws.onclose=()=>{
+    if(!intentionalClose&&joined){
+      // Auto-reconnect
+      $("reconnecting").style.display="block";
+      setTimeout(connect,1500);
+    }
+  };
+}
+
+function handleMsg(e){
+  const msg=JSON.parse(e.data);
+  if(msg.type==="error"){
+    if(!joined){$("joinError").textContent=msg.text;$("joinBtn").disabled=false;$("joinBtn").textContent="Join";$("joinScreen").style.display="flex";$("chatScreen").style.display="none";clearSession()}
+    if(ws)ws.close();return;
+  }
+  if(msg.type==="history"){
+    // Render all history (no animation)
+    $("messages").innerHTML="";
+    lastSender="";lastSenderTime=0;
+    msg.messages.forEach(m=>{
+      if(m.type==="system")addSystem(m.text,true);
+      else if(m.type==="message")addMessage(m,true);
+    });
+    if(!joined){joined=true;startCountdown();$("msgInput").focus()}
+    return;
+  }
+  if(msg.type==="joined"||msg.type==="left"||msg.type==="online"||msg.type==="offline"){
+    updateMeta(msg.members,msg.online,msg.names||[]);
+    if(msg.type==="joined"&&!joined){joined=true;startCountdown();$("msgInput").focus()}
+    // joined/left are also in history, but for live events show system msg
+    if(msg.type==="left")addSystem(msg.user+" left",false);
+    return;
+  }
+  if(msg.type==="message"){addMessage(msg,false);return}
+  if(msg.type==="typing"){showTyping(msg.user);return}
+  if(msg.type==="system"){addSystem(msg.text,false);return}
+  if(msg.type==="closed"){showClosed();return}
+}
 
 function doJoin(){
   const name=$("nameInput").value.trim();
   if(!name)return $("joinError").textContent="Enter your name";
-  ${hasPassword ? 'const pass=$("passInput").value;if(!pass)return $("joinError").textContent="Enter the room password";' : ''}
+  ${hasPassword ? 'const pass=$("passInput").value;if(!pass)return $("joinError").textContent="Enter the room password";localStorage.setItem("qchat_pass_"+ROOM_ID,pass);' : ''}
   myName=name;
   myDeviceId=getDeviceId();
-  localStorage.setItem('qchat_name_'+ROOM_ID,name);
+  saveSession(name,myDeviceId);
   localStorage.setItem('qchat_last_name',name);
   $("joinBtn").disabled=true;
   $("joinBtn").textContent="Connecting...";
-  const proto=location.protocol==="https:"?"wss:":"ws:";
-  ws=new WebSocket(proto+"//"+location.host+"/room/"+ROOM_ID+"/ws");
-  ws.onopen=()=>{
-    ws.send(JSON.stringify({type:"join",name,deviceId:myDeviceId${hasPassword ? ',password:$("passInput").value' : ''}}));
-  };
-  ws.onmessage=e=>{
-    const msg=JSON.parse(e.data);
-    if(msg.type==="error"){$("joinError").textContent=msg.text;$("joinBtn").disabled=false;$("joinBtn").textContent="Join";ws.close();return}
-    if(msg.type==="joined"||msg.type==="left"){
-      if(msg.type==="joined"&&msg.user===myName&&$("joinScreen").style.display!=="none"){
-        $("joinScreen").style.display="none";
-        $("chatScreen").style.display="flex";
-        $("msgInput").focus();
-        startCountdown();
-      }
-      updateParticipants(msg.participants,msg.names||[]);
-      addSystem(msg.user+(msg.type==="joined"?" joined":" left"));
-    }
-    else if(msg.type==="message"){addMessage(msg)}
-    else if(msg.type==="typing"){showTyping(msg.user)}
-    else if(msg.type==="system"){addSystem(msg.text)}
-    else if(msg.type==="closed"){showClosed()}
-  };
-  ws.onerror=()=>{$("joinError").textContent="Connection failed";$("joinBtn").disabled=false;$("joinBtn").textContent="Join"};
-  ws.onclose=()=>{};
+  $("joinScreen").style.display="none";
+  $("chatScreen").style.display="flex";
+  connect();
 }
 
 function doSend(){
   const text=$("msgInput").value.trim();
-  if(!text||!ws)return;
+  if(!text||!ws||ws.readyState!==1)return;
   ws.send(JSON.stringify({type:"message",text}));
   $("msgInput").value="";
   $("msgInput").focus();
@@ -226,25 +290,21 @@ $("msgInput")?.addEventListener("keydown",e=>{
 });
 $("nameInput").addEventListener("keydown",e=>{if(e.key==="Enter")doJoin()});
 
-// Pre-fill saved name
-const saved=getSavedName();
-if(saved)$("nameInput").value=saved;
-
-function addMessage(m){
+function addMessage(m,isHistory){
   const mine=m.user===myName;
-  const now=Date.now();
+  const now=m.ts||Date.now();
   const sameSender=m.user===lastSender&&(now-lastSenderTime)<60000;
   const isFirst=!sameSender;
   lastSender=m.user;lastSenderTime=now;
 
   const el=document.createElement("div");
-  el.className="msg "+(mine?"msg-mine":"msg-other")+(isFirst?" msg-first":"");
+  el.className="msg "+(mine?"msg-mine":"msg-other")+(isFirst?" msg-first":"")+(isHistory?" no-anim":"");
 
   const t=new Date(m.ts);
   const time=t.getHours().toString().padStart(2,"0")+":"+t.getMinutes().toString().padStart(2,"0");
 
   let html="";
-  if(!mine&&isFirst)html+='<div class="msg-sender" style="color:'+m.color+'">'+esc(m.user)+'</div>';
+  if(!mine&&isFirst)html+='<div class="msg-sender" style="color:'+(m.color||"var(--accent2)")+'">'+esc(m.user)+'</div>';
   html+='<div class="msg-text">'+linkify(esc(m.text))+'</div>';
   html+='<div class="msg-footer"><span class="msg-time">'+time+'</span>'+(mine?'<span class="msg-tick">✓✓</span>':'')+'</div>';
 
@@ -252,24 +312,29 @@ function addMessage(m){
   const msgs=$("messages");
   const atBottom=msgs.scrollHeight-msgs.scrollTop-msgs.clientHeight<80;
   msgs.appendChild(el);
-  if(atBottom)el.scrollIntoView({behavior:"smooth",block:"end"});
+  if(atBottom||isHistory)msgs.scrollTop=msgs.scrollHeight;
 }
 
 function linkify(text){
   return text.replace(/(https?:\\/\\/[^\\s<]+)/g,'<a href="$1" target="_blank" rel="noopener" style="color:var(--accent2)">$1</a>');
 }
 
-function addSystem(text){
+function addSystem(text,isHistory){
   const el=document.createElement("div");
-  el.className="msg-system";
+  el.className="msg-system"+(isHistory?" no-anim":"");
   el.textContent=text;
-  $("messages").appendChild(el);
-  el.scrollIntoView({behavior:"smooth",block:"end"});
+  const msgs=$("messages");
+  msgs.appendChild(el);
+  if(isHistory)msgs.scrollTop=msgs.scrollHeight;
+  else el.scrollIntoView({behavior:"smooth",block:"end"});
 }
 
-function updateParticipants(n,names){
-  const meta=names.length?names.join(", "):(n+" participant"+(n!==1?"s":""));
-  $("headerMeta").textContent=meta;
+function updateMeta(members,online,names){
+  let text="";
+  if(names.length<=5)text=names.join(", ");
+  else text=names.slice(0,4).join(", ")+" +"+(names.length-4);
+  if(online!==undefined&&members!==undefined)text+="  ·  "+online+"/"+members+" online";
+  $("headerMeta").textContent=text;
 }
 
 function showTyping(user){
@@ -279,7 +344,7 @@ function showTyping(user){
 }
 
 function startCountdown(){
-  if(TTL===0){$("countdown").textContent="∞ Open";return}
+  if(TTL===0){$("countdown").textContent="∞";return}
   const update=()=>{
     const left=Math.max(0,TTL*60*1000-(Date.now()-CREATED));
     const m=Math.floor(left/60000),s=Math.floor((left%60000)/1000);
@@ -289,15 +354,27 @@ function startCountdown(){
   update();setInterval(update,1000);
 }
 
-function showClosed(){$("closedOverlay").style.display="flex"}
+function confirmLeave(){$("confirmOverlay").style.display="flex"}
+function cancelLeave(){$("confirmOverlay").style.display="none"}
+function doLeave(){
+  intentionalClose=true;
+  if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:"leave",deviceId:myDeviceId}));
+  clearSession();
+  showClosed();
+  $("confirmOverlay").style.display="none";
+}
+
+function showClosed(){
+  intentionalClose=true;
+  if(ws)try{ws.close()}catch{}
+  $("closedOverlay").style.display="flex";
+}
 
 // PWA Install
 let deferredPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$("installBtn").style.display="block"});
 function doInstall(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;$("installBtn").style.display="none"})}}
-// iOS Safari — show button linking to instructions
-if(/iPhone|iPad/.test(navigator.userAgent)&&!window.navigator.standalone){$("installBtn").style.display="block";$("installBtn").textContent="📲 Add to Home";$("installBtn").onclick=()=>{alert("Tap the Share button (↑) at the bottom of Safari, then tap 'Add to Home Screen'")}}
-// Register service worker
+if(/iPhone|iPad/.test(navigator.userAgent)&&!window.navigator.standalone){$("installBtn").style.display="block";$("installBtn").onclick=()=>{alert("Tap the Share button (↑) then 'Add to Home Screen'")}}
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{})}
 </script>
 </body>

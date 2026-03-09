@@ -3,7 +3,7 @@ import { createNodeWebSocket } from "@hono/node-ws";
 import { serve } from "@hono/node-server";
 import { networkInterfaces } from "os";
 import QRCode from "qrcode";
-import { createRoom, getRoom, joinRoom, leaveRoom, broadcastMessage, broadcastTyping, closeAllRooms, type Room } from "./room.js";
+import { createRoom, getRoom, joinRoom, disconnectMember, leaveRoom, broadcastMessage, broadcastTyping, closeAllRooms, type Room } from "./room.js";
 import { generateHTML } from "./html.js";
 
 export interface ServerOpts {
@@ -89,12 +89,14 @@ export function startServer(opts: ServerOpts, onReady: (url: string, room: Room)
             if (msg.text?.trim()) broadcastMessage(r, ws, msg.text.trim());
           } else if (msg.type === "typing") {
             broadcastTyping(r, ws);
+          } else if (msg.type === "leave") {
+            leaveRoom(r, ws, msg.deviceId || "unknown");
           }
         } catch {}
       },
       onClose(_, ws) {
         const r = getRoom(roomId);
-        if (r) leaveRoom(r, ws);
+        if (r) disconnectMember(r, ws);
       },
     };
   }));
