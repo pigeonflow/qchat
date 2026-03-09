@@ -50,6 +50,9 @@ npx @pigeonflow/qchat --public --name "Workshop" --persist --password demo
 | `--password <s>` | Require password to join | None |
 | `--public` | Expose via Cloudflare tunnel | Off |
 | `--persist` | No TTL — room lives until empty | Off |
+| `--bot [name]` | Add an AI agent to the chat | Off |
+| `--bot-agent <id>` | OpenClaw agent id for `--bot` | `main` |
+| `--bot-greeting <s>` | Custom bot greeting message | Auto |
 
 ## How it works
 
@@ -74,6 +77,45 @@ This starts a [Cloudflare tunnel](https://developers.cloudflare.com/cloudflare-o
 
 The chat UI is a PWA. Users can tap "📲 Add to Home" in the header to save it as an app shortcut on their phone — instant access without opening a browser.
 
+## AI Agent Mode
+
+Add an [OpenClaw](https://github.com/openclaw/openclaw) agent as a chat participant. The agent joins the room, sees all messages, and responds when @mentioned.
+
+```bash
+# Add your default agent to the chat
+npx @pigeonflow/qchat --bot Snoopy
+
+# Public room with a named agent
+npx @pigeonflow/qchat --public --persist --bot Snoopy
+
+# Target a specific agent
+npx @pigeonflow/qchat --bot Assistant --bot-agent ops
+
+# Custom greeting
+npx @pigeonflow/qchat --bot Snoopy --bot-greeting "Hey team! Ask me anything."
+```
+
+### How it works
+
+1. The bot joins as a regular participant with the name you provide
+2. It announces itself on join with a greeting message
+3. It sees all messages for context but **only responds when @mentioned**
+4. Type `@` in the input to autocomplete participant names
+5. Mentions are highlighted in chat bubbles
+
+### Requirements
+
+- [OpenClaw](https://github.com/openclaw/openclaw) must be installed and running on the host machine
+- The agent responds via `openclaw agent --json` under the hood
+- Typing indicator shows while the agent is thinking (~3-10s depending on model)
+
+### Use cases
+
+- **Live demos** — QR on a slide, audience chats with your agent
+- **Support kiosk** — print a QR code, customers scan and get instant AI help
+- **Group + AI** — team brainstorm with an AI participant for research/ideas
+- **Workshops** — AI tutor in a group chat, students ask questions via @mention
+
 ## Use cases
 
 - **Meetings** — quick throwaway chat for a standup or call
@@ -92,6 +134,8 @@ The chat UI is a PWA. Users can tap "📲 Add to Home" in the header to save it 
 - 💬 Typing indicators, read ticks, color-coded names
 - 🔄 Device ID tracking (reconnect handling, name memory)
 - 📷 QR code in terminal + shareable SVG endpoint
+- 🤖 AI agent mode — add an OpenClaw agent as a participant
+- @️ @mention autocomplete + highlighting
 
 ## License
 
