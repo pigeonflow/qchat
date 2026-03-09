@@ -24,7 +24,7 @@ export function getLocalIP(): string {
   return "localhost";
 }
 
-export function startServer(opts: ServerOpts, onReady: (url: string, room: Room) => void) {
+export function startServer(opts: ServerOpts, onReady: (url: string, room: Room) => void | Promise<void>) {
   const app = new Hono();
   const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
 
