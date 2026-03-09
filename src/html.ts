@@ -86,7 +86,17 @@ body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--b
 /* Reconnecting banner */
 .reconnecting{display:none;background:#e6a817;color:#000;text-align:center;font-size:12px;padding:4px;font-weight:500;flex-shrink:0}
 
-.input-bar{display:flex;gap:6px;padding:6px 8px;background:var(--bg);flex-shrink:0;padding-bottom:max(6px,env(safe-area-inset-bottom));align-items:flex-end}
+/* @mention highlight */
+.mention{color:var(--accent);font-weight:500;cursor:default}
+.mention-me{background:rgba(0,168,132,.2);padding:1px 3px;border-radius:3px}
+
+/* Autocomplete dropdown */
+.autocomplete{display:none;position:absolute;bottom:100%;left:12px;right:60px;background:var(--header);border:1px solid var(--border);border-radius:10px;overflow:hidden;max-height:180px;overflow-y:auto;box-shadow:0 -4px 16px rgba(0,0,0,.3);z-index:10;margin-bottom:4px}
+.autocomplete-item{padding:10px 14px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px;transition:background .1s}
+.autocomplete-item:hover,.autocomplete-item.selected{background:rgba(255,255,255,.08)}
+.autocomplete-item .ac-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+
+.input-bar{display:flex;gap:6px;padding:6px 8px;background:var(--bg);flex-shrink:0;padding-bottom:max(6px,env(safe-area-inset-bottom));align-items:flex-end;position:relative}
 .input-wrap{flex:1;background:var(--input-bg);border-radius:24px;display:flex;align-items:flex-end;padding:6px 12px;min-height:44px}
 .input-wrap input{flex:1;border:none;background:transparent;color:var(--text);font-size:16px;outline:none;padding:4px 0;line-height:1.3}
 .input-wrap input::placeholder{color:var(--text2)}
@@ -148,6 +158,7 @@ body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--b
   <div class="messages" id="messages"></div>
   <div class="typing-indicator" id="typingIndicator"></div>
   <div class="input-bar">
+    <div class="autocomplete" id="autocomplete"></div>
     <div class="input-wrap">
       <input type="text" id="msgInput" placeholder="Message" autocomplete="off">
     </div>
@@ -285,9 +296,49 @@ function doSend(){
 }
 
 $("msgInput")?.addEventListener("keydown",e=>{
+  const ac=$("autocomplete");
+  if(ac&&ac.style.display==="block"){
+    const items=ac.querySelectorAll(".autocomplete-item");
+    if(e.key==="ArrowDown"){e.preventDefault();acIdx=Math.min(acIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle("selected",i===acIdx));return}
+    if(e.key==="ArrowUp"){e.preventDefault();acIdx=Math.max(acIdx-1,0);items.forEach((el,i)=>el.classList.toggle("selected",i===acIdx));return}
+    if((e.key==="Tab"||e.key==="Enter")&&acIdx>=0){e.preventDefault();pickMention(items[acIdx]);return}
+    if(e.key==="Enter"&&acIdx<0&&items.length>0){e.preventDefault();pickMention(items[0]);return}
+    if(e.key==="Escape"){hideAc();return}
+  }
   if(e.key==="Enter"){e.preventDefault();doSend()}
   else{clearTimeout(typingTimeout);typingTimeout=setTimeout(()=>{ws&&ws.readyState===1&&ws.send(JSON.stringify({type:"typing"}))},300)}
 });
+$("msgInput")?.addEventListener("input",()=>{
+  const val=$("msgInput").value;
+  const cursor=$("msgInput").selectionStart;
+  const before=val.slice(0,cursor);
+  const m=before.match(/@(\\w*)$/);
+  if(m){
+    const q=m[1].toLowerCase();
+    const hits=knownMembers.filter(n=>n.toLowerCase().startsWith(q));
+    if(hits.length){showAc(hits,m.index);return}
+  }
+  hideAc();
+});
+let knownMembers=[],acIdx=-1;
+function showAc(names,atIdx){
+  const ac=$("autocomplete");acIdx=-1;
+  ac.innerHTML=names.map(name=>{
+    let h=0;for(let i=0;i<name.length;i++)h=(h*31+name.charCodeAt(i))|0;
+    const colors=["#25d366","#53bdeb","#f472b6","#a78bfa","#34d399","#fbbf24","#fb923c","#f87171","#38bdf8","#818cf8"];
+    const c=colors[Math.abs(h)%colors.length];
+    return '<div class="autocomplete-item" data-name="'+esc(name)+'" data-at="'+atIdx+'" onclick="pickMention(this)"><div class="ac-avatar" style="background:'+c+'">'+esc(name[0].toUpperCase())+'</div><span>'+esc(name)+'</span></div>';
+  }).join("");
+  ac.style.display="block";
+}
+function hideAc(){$("autocomplete").style.display="none";acIdx=-1}
+function pickMention(el){
+  const name=el.dataset.name,atI=parseInt(el.dataset.at);
+  const val=$("msgInput").value;
+  const after=val.slice($("msgInput").selectionStart).replace(/^\\w*/,"");
+  $("msgInput").value=val.slice(0,atI)+"@"+name+" "+after;
+  $("msgInput").focus();hideAc();
+}
 $("nameInput").addEventListener("keydown",e=>{if(e.key==="Enter")doJoin()});
 
 function addMessage(m,isHistory){
@@ -316,7 +367,12 @@ function addMessage(m,isHistory){
 }
 
 function linkify(text){
-  return text.replace(/(https?:\\/\\/[^\\s<]+)/g,'<a href="$1" target="_blank" rel="noopener" style="color:var(--accent2)">$1</a>');
+  text=text.replace(/(https?:\\/\\/[^\\s<]+)/g,'<a href="$1" target="_blank" rel="noopener" style="color:var(--accent2)">$1</a>');
+  text=text.replace(/@(\\w+)/g,(match,name)=>{
+    const isMe=name.toLowerCase()===myName.toLowerCase();
+    return '<span class="mention'+(isMe?' mention-me':'')+'">'+match+'</span>';
+  });
+  return text;
 }
 
 function addSystem(text,isHistory){
@@ -335,6 +391,7 @@ function updateMeta(members,online,names){
   else text=names.slice(0,4).join(", ")+" +"+(names.length-4);
   if(online!==undefined&&members!==undefined)text+="  ·  "+online+"/"+members+" online";
   $("headerMeta").textContent=text;
+  knownMembers=names.filter(n=>n!==myName);
 }
 
 function showTyping(user){

@@ -3,11 +3,12 @@ import { program } from "commander";
 import qrTerminal from "qrcode-terminal";
 import { startServer, getLocalIP } from "./server.js";
 import { startTunnel } from "./tunnel.js";
+import { startBot } from "./bot.js";
 
 program
   .name("qchat")
   .description("Disposable group chat. One command, one QR code, zero signup.")
-  .version("1.1.0")
+  .version("1.4.0")
   .option("-p, --port <number>", "port to serve on", (v) => parseInt(v), 0)
   .option("-t, --ttl <minutes>", "room TTL in minutes", (v) => parseInt(v), 60)
   .option("-n, --name <name>", "room name")
@@ -15,11 +16,13 @@ program
   .option("--password <secret>", "room password")
   .option("--public", "expose via Cloudflare tunnel (accessible from anywhere)")
   .option("--persist", "room stays open until everyone leaves (no TTL)")
+  .option("--bot [name]", "add an OpenClaw agent as a participant (default name: Agent)")
+  .option("--bot-agent <id>", "OpenClaw agent id for --bot")
+  .option("--bot-greeting <text>", "custom bot greeting message")
   .parse();
 
 const opts = program.opts();
 const port = opts.port || (3000 + Math.floor(Math.random() * 6000));
-
 const ttl = opts.persist ? 0 : opts.ttl;
 
 startServer(
@@ -49,6 +52,7 @@ startServer(
     console.log(`  TTL:   ${room.ttlMinutes === 0 ? 'Until empty (persist mode)' : room.ttlMinutes + ' minutes'}`);
     console.log(`  Max:   ${room.maxParticipants} participants`);
     if (room.password) console.log("  🔒    Password-protected");
+    if (opts.bot) console.log(`  🤖    Bot: ${typeof opts.bot === "string" ? opts.bot : "Agent"}`);
     console.log("");
     console.log(`  \x1b[4m${shareUrl}\x1b[0m`);
     if (opts.public && shareUrl !== localUrl) {
@@ -60,6 +64,18 @@ startServer(
       console.log("");
       console.log("  \x1b[2mScan the QR code or share the URL. Ctrl+C to close.\x1b[0m");
       console.log("");
+
+      // Start bot after everything is ready
+      if (opts.bot) {
+        const botName = typeof opts.bot === "string" ? opts.bot : "Agent";
+        const wsUrl = `ws://localhost:${port}/room/${room.id}/ws`;
+        startBot({
+          url: wsUrl,
+          name: botName,
+          agent: opts.botAgent,
+          greeting: opts.botGreeting,
+        });
+      }
     });
   }
 );
