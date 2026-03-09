@@ -13,10 +13,10 @@ export interface Room {
   name: string;
   password?: string;
   maxParticipants: number;
-  ttlMinutes: number;
+  ttlMinutes: number;  // 0 = persist until empty
   createdAt: number;
   participants: Map<WSContext, Participant>;
-  timer: ReturnType<typeof setTimeout>;
+  timer?: ReturnType<typeof setTimeout>;
   warningTimer?: ReturnType<typeof setTimeout>;
 }
 
@@ -51,12 +51,15 @@ export function createRoom(opts: { name?: string; password?: string; max?: numbe
     ttlMinutes,
     createdAt: Date.now(),
     participants: new Map(),
-    timer: setTimeout(() => expireRoom(id), ttlMinutes * 60 * 1000),
   };
-  if (ttlMinutes > 5) {
-    room.warningTimer = setTimeout(() => {
-      broadcast(room, { type: "system", text: "Room expires in 5 minutes" });
-    }, (ttlMinutes - 5) * 60 * 1000);
+  // Only set expiry timer if TTL > 0 (0 = persist until empty)
+  if (ttlMinutes > 0) {
+    room.timer = setTimeout(() => expireRoom(id), ttlMinutes * 60 * 1000);
+    if (ttlMinutes > 5) {
+      room.warningTimer = setTimeout(() => {
+        broadcast(room, { type: "system", text: "Room expires in 5 minutes" });
+      }, (ttlMinutes - 5) * 60 * 1000);
+    }
   }
   rooms.set(id, room);
   return room;
@@ -89,6 +92,11 @@ export function leaveRoom(room: Room, ws: WSContext) {
   if (!p) return;
   room.participants.delete(ws);
   broadcast(room, { type: "left", user: p.name, participants: room.participants.size, names: participantNames(room) });
+  // In persist mode (ttl=0), close room when last person leaves
+  if (room.ttlMinutes === 0 && room.participants.size === 0) {
+    broadcast(room, { type: "closed", reason: "empty" });
+    rooms.delete(room.id);
+  }
 }
 
 export function broadcastMessage(room: Room, ws: WSContext, text: string) {
@@ -126,7 +134,7 @@ function expireRoom(id: string) {
 
 export function closeAllRooms() {
   for (const [id, room] of rooms) {
-    clearTimeout(room.timer);
+    if (room.timer) clearTimeout(room.timer);
     if (room.warningTimer) clearTimeout(room.warningTimer);
     broadcast(room, { type: "closed", reason: "host_disconnected" });
     for (const [ws] of room.participants) {

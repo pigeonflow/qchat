@@ -14,13 +14,16 @@ program
   .option("-m, --max <number>", "max participants", (v) => parseInt(v), 50)
   .option("--password <secret>", "room password")
   .option("--public", "expose via Cloudflare tunnel (accessible from anywhere)")
+  .option("--persist", "room stays open until everyone leaves (no TTL)")
   .parse();
 
 const opts = program.opts();
 const port = opts.port || (3000 + Math.floor(Math.random() * 6000));
 
+const ttl = opts.persist ? 0 : opts.ttl;
+
 startServer(
-  { port, name: opts.name, password: opts.password, max: opts.max, ttl: opts.ttl },
+  { port, name: opts.name, password: opts.password, max: opts.max, ttl },
   async (localUrl, room) => {
     let shareUrl = localUrl;
 
@@ -43,7 +46,7 @@ startServer(
 
     console.log("");
     console.log(`  Room:  \x1b[1m${room.name}\x1b[0m`);
-    console.log(`  TTL:   ${room.ttlMinutes} minutes`);
+    console.log(`  TTL:   ${room.ttlMinutes === 0 ? 'Until empty (persist mode)' : room.ttlMinutes + ' minutes'}`);
     console.log(`  Max:   ${room.maxParticipants} participants`);
     if (room.password) console.log("  🔒    Password-protected");
     console.log("");

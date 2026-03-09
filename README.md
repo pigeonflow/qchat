@@ -1,15 +1,13 @@
-# ⚡ qchat
+# qchat
 
-**Disposable group chat. One command, one QR code, zero signup.**
+Disposable group chat. One command, one QR code, zero signup.
 
-> Start a chat room from your terminal. Share the QR code. People join instantly from their phone browser. No app, no account, no friction.
-
-<!-- ![qchat demo](demo.gif) -->
+Spin up an instant chat room from your terminal. Share the QR code — people scan it and join from their phone browser. No app to install. Room self-destructs when done.
 
 ## Install
 
 ```bash
-npx qchat
+npx @pigeonflow/qchat
 ```
 
 That's it. No global install needed.
@@ -17,59 +15,87 @@ That's it. No global install needed.
 ## Usage
 
 ```bash
-npx qchat                        # start a room on a random port
-npx qchat --port 3000            # specify port
-npx qchat --ttl 30               # room expires in 30 min (default: 60)
-npx qchat --name "Standup"       # give the room a name
-npx qchat --max 10               # limit participants (default: 50)
-npx qchat --password secret      # password-protect the room
+# Start a local chat room (default: 60 min TTL)
+npx @pigeonflow/qchat
+
+# Public mode — accessible from anywhere via Cloudflare tunnel
+npx @pigeonflow/qchat --public
+
+# Custom room name
+npx @pigeonflow/qchat --name "Team Standup"
+
+# Persist mode — room stays open until everyone leaves
+npx @pigeonflow/qchat --persist
+
+# Password-protected room
+npx @pigeonflow/qchat --password secret123
+
+# Custom TTL (30 minutes)
+npx @pigeonflow/qchat --ttl 30
+
+# Combine flags
+npx @pigeonflow/qchat --public --name "Workshop" --persist --password demo
 ```
 
 ## Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
+| Flag | Description | Default |
+|------|-------------|---------|
 | `-p, --port <n>` | Port to serve on | Random (3000-9000) |
-| `-t, --ttl <min>` | Room time-to-live in minutes | `60` |
-| `-n, --name <name>` | Room display name | `Chat Room` |
+| `-t, --ttl <min>` | Room expires after N minutes | `60` |
+| `-n, --name <s>` | Room display name | `Chat Room` |
 | `-m, --max <n>` | Max participants | `50` |
-| `--password <s>` | Room password | None |
+| `--password <s>` | Require password to join | None |
+| `--public` | Expose via Cloudflare tunnel | Off |
+| `--persist` | No TTL — room lives until empty | Off |
 
-## How It Works
+## How it works
 
-1. You run `npx qchat` — a server starts on your local network
+1. You run `npx @pigeonflow/qchat` on your machine
 2. A QR code appears in your terminal
-3. People scan it → beautiful mobile chat opens in their browser
+3. People scan it → opens a chat in their phone browser
 4. Real-time messaging via WebSocket
-5. Room auto-expires after the TTL (or when you hit Ctrl+C)
+5. Room auto-expires after TTL (or when everyone leaves in persist mode)
+6. `Ctrl+C` closes everything
 
-Everything stays on your local network. No cloud, no data collection, nothing leaves your machine.
+### Public mode
 
-## Use Cases
+By default, qchat runs on your local network. Add `--public` to make it accessible from anywhere:
 
-- 🏢 **Standup meetings** — quick throwaway chat for daily sync
-- 🎓 **Workshops** — audience Q&A without downloading an app  
-- 🎉 **Events & parties** — group chat for everyone in the room
-- 🏕 **Hackathons** — spin up a team chat in 2 seconds
-- 📋 **Presentations** — live questions from the audience
-- 🏠 **Home** — share links/text between devices on your network
+```bash
+npx @pigeonflow/qchat --public
+```
+
+This starts a [Cloudflare tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) — your room gets a public HTTPS URL like `https://random-words.trycloudflare.com/room/abc123`. First run downloads the `cloudflared` binary (~25MB, cached at `~/.qchat/bin/`).
+
+### Add to Home Screen
+
+The chat UI is a PWA. Users can tap "📲 Add to Home" in the header to save it as an app shortcut on their phone — instant access without opening a browser.
+
+## Use cases
+
+- **Meetings** — quick throwaway chat for a standup or call
+- **Workshops** — audience Q&A without installing anything
+- **Events** — conference hallway chat, party coordination
+- **Classrooms** — real-time backchannel
+- **LAN parties** — local network, no internet needed
 
 ## Features
 
-- 📱 **Mobile-first UI** — gorgeous dark theme, WhatsApp-level polish
-- ⚡ **Instant** — zero signup, zero install for participants
-- 🔒 **Optional password** — protect rooms when needed
-- ⏱️ **Auto-expire** — rooms self-destruct after TTL
-- 🎨 **Color-coded names** — easily distinguish participants
-- 💬 **Typing indicators** — see who's typing
-- 📡 **Local network** — no cloud, no tracking, fully private
-
-## Tech Stack
-
-- [Hono](https://hono.dev) — ultrafast web framework
-- WebSocket — real-time messaging
-- Vanilla HTML/CSS/JS — no build step, no framework
+- 📱 WhatsApp-style mobile-first UI (dark theme)
+- 🔒 Optional password protection
+- ⏱️ Configurable TTL or persist-until-empty mode
+- 🌐 Public mode via Cloudflare tunnel
+- 📲 PWA — installable as home screen shortcut
+- 💬 Typing indicators, read ticks, color-coded names
+- 🔄 Device ID tracking (reconnect handling, name memory)
+- 📷 QR code in terminal + shareable SVG endpoint
 
 ## License
 
 MIT
+
+## Links
+
+- [npm](https://www.npmjs.com/package/@pigeonflow/qchat)
+- [GitHub](https://github.com/pigeonflow/qchat)

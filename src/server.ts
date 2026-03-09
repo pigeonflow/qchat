@@ -33,6 +33,25 @@ export function startServer(opts: ServerOpts, onReady: (url: string, room: Room)
 
   app.get("/", (c) => c.redirect(`/room/${room.id}`));
 
+  app.get("/manifest.json", (c) => c.json({
+    name: opts.name || "qchat",
+    short_name: "qchat",
+    description: "Disposable group chat",
+    start_url: `/room/${room.id}`,
+    display: "standalone",
+    background_color: "#0b141a",
+    theme_color: "#00a884",
+    icons: [{
+      src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230b141a' width='100' height='100' rx='20'/><text y='70' x='50' text-anchor='middle' font-size='60'>💬</text></svg>",
+      sizes: "any",
+      type: "image/svg+xml"
+    }]
+  }));
+
+  app.get("/sw.js", (c) => {
+    return c.body("self.addEventListener('fetch',()=>{});", 200, { "Content-Type": "application/javascript" });
+  });
+
   app.get("/room/:id", (c) => {
     const r = getRoom(c.req.param("id")!);
     if (!r) return c.text("Room not found", 404);

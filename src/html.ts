@@ -6,6 +6,8 @@ export function generateHTML(roomId: string, roomName: string, hasPassword: bool
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230b141a' width='100' height='100' rx='20'/><text y='70' x='50' text-anchor='middle' font-size='60'>💬</text></svg>">
 <title>${esc(roomName)} — qchat</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -55,6 +57,8 @@ body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--b
 .header-info h2{font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .header-info .meta{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .header-timer{font-size:11px;color:var(--text2);background:rgba(255,255,255,.08);padding:4px 10px;border-radius:12px;flex-shrink:0;font-variant-numeric:tabular-nums}
+.install-btn{display:none;background:none;border:1px solid var(--accent);color:var(--accent);font-size:11px;padding:4px 10px;border-radius:12px;cursor:pointer;flex-shrink:0;font-weight:500;transition:background .2s,color .2s}
+.install-btn:hover{background:var(--accent);color:#fff}
 
 /* MESSAGES */
 .messages{flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:1px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
@@ -133,6 +137,7 @@ body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--b
       <h2>${esc(roomName)}</h2>
       <div class="meta" id="headerMeta">tap here for info</div>
     </div>
+    <button class="install-btn" id="installBtn" onclick="doInstall()">📲 Add to Home</button>
     <div class="header-timer" id="countdown"></div>
   </div>
   <div class="messages" id="messages"></div>
@@ -274,6 +279,7 @@ function showTyping(user){
 }
 
 function startCountdown(){
+  if(TTL===0){$("countdown").textContent="∞ Open";return}
   const update=()=>{
     const left=Math.max(0,TTL*60*1000-(Date.now()-CREATED));
     const m=Math.floor(left/60000),s=Math.floor((left%60000)/1000);
@@ -284,6 +290,15 @@ function startCountdown(){
 }
 
 function showClosed(){$("closedOverlay").style.display="flex"}
+
+// PWA Install
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$("installBtn").style.display="block"});
+function doInstall(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;$("installBtn").style.display="none"})}}
+// iOS Safari — show button linking to instructions
+if(/iPhone|iPad/.test(navigator.userAgent)&&!window.navigator.standalone){$("installBtn").style.display="block";$("installBtn").textContent="📲 Add to Home";$("installBtn").onclick=()=>{alert("Tap the Share button (↑) at the bottom of Safari, then tap 'Add to Home Screen'")}}
+// Register service worker
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{})}
 </script>
 </body>
 </html>`;
